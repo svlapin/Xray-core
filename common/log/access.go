@@ -21,12 +21,14 @@ const (
 )
 
 type AccessMessage struct {
-	From   interface{}
-	To     interface{}
-	Status AccessStatus
-	Reason interface{}
-	Email  string
-	Detour string
+	From            interface{}
+	To              interface{}
+	Status          AccessStatus
+	Reason          interface{}
+	Email           string
+	Detour          string
+	SniffedDomain   string
+	SniffedProtocol string
 }
 
 func (m *AccessMessage) String() string {
@@ -43,6 +45,15 @@ func (m *AccessMessage) String() string {
 		builder.WriteString(" [")
 		builder.WriteString(m.Detour)
 		builder.WriteByte(']')
+	}
+
+	if len(m.SniffedDomain) > 0 {
+		builder.WriteString(" sniffed:")
+		if len(m.SniffedProtocol) > 0 {
+			builder.WriteString(m.SniffedProtocol)
+			builder.WriteByte(':')
+		}
+		builder.WriteString(m.SniffedDomain)
 	}
 
 	if reason := serial.ToString(m.Reason); len(reason) > 0 {

@@ -450,6 +450,22 @@ func sniffer(ctx context.Context, cReader *cachedReader, metadataOnly bool, netw
 	return contentResult, contentErr
 }
 
+func sniffedDomain(ob *session.Outbound) string {
+	if ob.RouteTarget.IsValid() && ob.RouteTarget.Address.Family().IsDomain() {
+		domain := ob.RouteTarget.Address.Domain()
+		if !ob.OriginalTarget.Address.Family().IsDomain() || ob.OriginalTarget.Address.Domain() != domain {
+			return domain
+		}
+	}
+	if ob.Target.IsValid() && ob.Target.Address.Family().IsDomain() {
+		domain := ob.Target.Address.Domain()
+		if !ob.OriginalTarget.Address.Family().IsDomain() || ob.OriginalTarget.Address.Domain() != domain {
+			return domain
+		}
+	}
+	return ""
+}
+
 func (d *DefaultDispatcher) routedDispatch(ctx context.Context, link *transport.Link, destination net.Destination) {
 	outbounds := session.OutboundsFromContext(ctx)
 	ob := outbounds[len(outbounds)-1]
@@ -516,6 +532,12 @@ func (d *DefaultDispatcher) routedDispatch(ctx context.Context, link *transport.
 			} else {
 				accessMessage.Detour = inTag + " >> " + tag
 			}
+		}
+		if content := session.ContentFromContext(ctx); content != nil && content.Protocol != "" {
+			accessMessage.SniffedProtocol = content.Protocol
+		}
+		if domain := sniffedDomain(ob); domain != "" {
+			accessMessage.SniffedDomain = domain
 		}
 		log.Record(accessMessage)
 	}
