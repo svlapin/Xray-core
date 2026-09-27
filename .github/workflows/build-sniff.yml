@@ -1,0 +1,58 @@
+name: Build Sniff-Logging Binary
+
+on:
+  push:
+    branches: [sniff-logging]
+  workflow_dispatch:
+  release:
+    types: [published]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        include:
+          - goos: linux
+            goarch: amd64
+            name: linux-amd64
+          - goos: linux
+            goarch: arm64
+            name: linux-arm64
+    env:
+      GOOS: ${{ matrix.goos }}
+      GOARCH: ${{ matrix.goarch }}
+      CGO_ENABLED: 0
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          check-latest: true
+
+      - name: Build
+        run: |
+          COMMIT=$(git describe --always --dirty)
+          go build -o xray-${{ matrix.name }} \
+            -trimpath -buildvcs=false \
+            -ldflags="-X github.com/xtls/xray-core/core.build=${COMMIT} -s -w -buildid=" \
+            -v ./main
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: xray-${{ matrix.name }}
+          path: xray-${{ matrix.name }}
+
+      - name: Upload to release
+        if: github.event_name == 'release'
+        uses: svenstaro/upload-release-action@v2
+        with:
+          repo_token: ${{ secrets.GITHUB_TOKEN }}
+          file: xray-${{ matrix.name }}
+          asset_name: xray-${{ matrix.name }}
+          tag: ${{ github.ref }}
